@@ -63,13 +63,14 @@ class OtherStockController{
         })
       }
       const {itemName, itemSize, itemBrand, itemQuantity} = req.body
-      if(!itemName || !itemBrand || !itemQuantity){
+      if(itemName === undefined || itemBrand === undefined || itemQuantity === undefined){
         return res.status(400).json({
           "message" : "Please provide itemName, itemSize, itemBrand, itemQuantity"
         })
       }
-       await sequelize.query(`INSERT INTO other_product(itemName, itemSize, itemBrand, itemQuantity) VALUES (?,?,?,?)`,{type : QueryTypes.INSERT,
-        replacements : [itemName, itemSize, itemBrand, itemQuantity]
+      const newItemSize = itemSize === undefined ? null : itemSize
+       await sequelize.query(`INSERT INTO other_product(id,itemName, itemSize, itemBrand, itemQuantity, createdAt, updatedAt) VALUES (UUID(),?,?,?,?,NOW(),NOW())`,{type : QueryTypes.INSERT,
+        replacements : [itemName, newItemSize, itemBrand, itemQuantity]
       })
 
       res.status(201).json({
@@ -85,7 +86,7 @@ class OtherStockController{
 
   async deleteOtherProduct(req : Request, res : Response){
     try{
-      const id = req.params
+      const {id} = req.params
       const [isValidId] = await sequelize.query<IOtherProduct>(`SELECT * FROM other_product WHERE id=?`,{
         type : QueryTypes.SELECT,
         replacements: [id]

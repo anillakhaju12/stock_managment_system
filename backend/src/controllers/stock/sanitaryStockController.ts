@@ -70,8 +70,9 @@ class SanitaryStockController{
           "message" : "Please provide itemName, itemSize, itemBrand, itemQuantity"
         })
       }
-       await sequelize.query(`INSERT INTO sanitary_product(itemName, itemSize, itemBrand, itemQuantity) VALUES (?,?,?,?)`,{type : QueryTypes.INSERT,
-        replacements : [itemName, itemSize, itemBrand, itemQuantity]
+      const newItemSize = itemSize === undefined ? null : itemSize
+       await sequelize.query(`INSERT INTO sanitary_product(id,itemName, itemSize, itemBrand, itemQuantity, createdAt, updatedAt) VALUES (UUID(),?,?,?,?,NOW(),NOW())`,{type : QueryTypes.INSERT,
+        replacements : [itemName, newItemSize, itemBrand, itemQuantity]
       })
 
       res.status(201).json({
