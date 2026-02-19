@@ -1,7 +1,6 @@
 import type{ Request, Response } from "express";
 import sequelize from "../../database/connection.js";
 import { QueryTypes} from "sequelize";
-import PipeProduct from "../../database/models/stock/pipeProductModel.js";
 
 interface IPipeProduct {
   id: number;
@@ -16,7 +15,7 @@ interface IPipeProduct {
 
 
 class PipeStockController{
-  async allPipeProduct(req: Request, res : Response){
+  async showAllPipeProduct(req: Request, res : Response){
     try{
       const pipeProducts = await sequelize.query<IPipeProduct>(`SELECT * FROM pipe_product`,{
         type: QueryTypes.SELECT
@@ -64,7 +63,7 @@ class PipeStockController{
           })
         }
         const {itemName, itemSize, itemQuantity, itemBrand, itemType} = req.body
-        if(!itemName || !itemSize || !itemQuantity || !itemBrand || !itemType ){
+        if(itemName === undefined || itemSize === undefined || itemQuantity === undefined || itemBrand === undefined || itemType === undefined ){
           return res.status(400).json({
             "message" : "Please provide the itemName, itemSize, itemQuantity, itemBrand and itemType"
           })
@@ -87,13 +86,13 @@ class PipeStockController{
   async deletePipeProduct(req: Request, res : Response){
     try{
       const {id} = req.params
-      const isValidId = await PipeProduct.findOne({where : {id}})
-      if(!isValidId){
+      const [isValidId] = await sequelize.query(`SELECT * FROM pipe_product WHERE id=?`,{type: QueryTypes.SELECT, replacements:[id]})
+        if(!isValidId){
         return res.status(404).json({
           "message" : "product not found"
         })
       }
-      const isDeleted = await PipeProduct.destroy({where : {id}})
+      const [isDeleted] = await sequelize.query(`DELETE FROM pipe_product WHERE id=?`,{replacements : [id]})
       if(isDeleted){
         return res.status(200).json({
           "message" : "pipe product deleted successfully"
@@ -116,13 +115,31 @@ class PipeStockController{
     try{
       const {id} = req.params
       const {itemName, itemSize, itemQuantity, itemBrand, itemType} = req.body
-      const isValidId = await PipeProduct.findOne({where : {id}})
+      const [isValidId] = await sequelize.query(`SELECT * FROM pipe_product WHERE id=?`,{type: QueryTypes.SELECT, replacements:[id]})
       if(!isValidId){
         return res.status(404).json({
           "message" : "product not found"
         })
       }
-      await PipeProduct.update({itemName, itemSize, itemQuantity, itemBrand, itemType},{where : {id}}) 
+      //Quick reminder
+      // Using COALESCE for partial update:
+      // - undefined -> converted to NULL
+      // - COALESCE(NULL, column) keeps old value
+      // - Only provided fields update
+      // NOTE: Cannot intentionally set column to NULL using this method.
+
+      // Partial update using dynamic object:
+      // - Only provided fields are added to update object
+      // - Safer and more scalable than COALESCE
+      // - Allows intentional NULL updates
+      // - Better for validation & business logic
+
+
+      const checkValue = <valueType>(value:valueType | undefined) : valueType | null => value ?? null
+
+      await sequelize.query(`UPDATE pipe_product SET itemName= COALESCE(?,itemName), itemSize=COALESCE(?,itemSize), itemQuantity=COALESCE(?,itemQuantity), itemBrand=COALESCE(?,itemBrand), itemType=COALESCE(?,itemType) WHERE id=?`,{ type : QueryTypes.UPDATE,
+        replacements :[checkValue<string>(itemName), checkValue<string>(itemSize), checkValue<number>(itemQuantity), checkValue<string>(itemBrand), checkValue<string>(itemType), id]
+      })
       res.status(200).json({
         "message" : "Product updated successfully"
       }
